@@ -1,0 +1,618 @@
+
+#include <WiFi.h>
+#include <WebServer.h>
+
+// =====================================================
+// MYRAA - ESP32-S3 + L298N MOTOR CONTROL
+// =====================================================
+
+// ================= WIFI =================
+
+const char* ssid = "MYRAA_ROBOT";
+const char* password = "12345678";
+
+WebServer server(80);
+
+
+// =====================================================
+// L298N PINS
+// =====================================================
+
+// RIGHT MOTOR
+#define ENA 4
+#define IN1 5
+#define IN2 6
+
+// LEFT MOTOR
+#define ENB 7
+#define IN3 15
+#define IN4 16
+
+
+// =====================================================
+// SPEED
+// =====================================================
+
+int carSpeed = 255;
+
+const int speedLow  = 150;
+const int speedMid  = 200;
+const int speedHigh = 255;
+
+
+// =====================================================
+// RIGHT MOTOR
+// =====================================================
+
+void rightForward() {
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  analogWrite(ENA, carSpeed);
+}
+
+
+void rightBackward() {
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+
+  analogWrite(ENA, carSpeed);
+}
+
+
+void rightStop() {
+
+  analogWrite(ENA, 0);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+}
+
+
+// =====================================================
+// LEFT MOTOR
+// =====================================================
+
+void leftForward() {
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+
+  analogWrite(ENB, carSpeed);
+}
+
+
+void leftBackward() {
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+
+  analogWrite(ENB, carSpeed);
+}
+
+
+void leftStop() {
+
+  analogWrite(ENB, 0);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
+
+
+// =====================================================
+// MOVEMENT
+// =====================================================
+
+// FORWARD
+void forwardCar() {
+
+  rightForward();
+  leftForward();
+}
+
+
+// BACKWARD
+void backwardCar() {
+
+  rightBackward();
+  leftBackward();
+}
+
+
+// LEFT
+void leftCar() {
+
+  rightForward();
+  leftBackward();
+}
+
+
+// RIGHT
+void rightCar() {
+
+  rightBackward();
+  leftForward();
+}
+
+
+// STOP
+void stopCar() {
+
+  rightStop();
+  leftStop();
+}
+
+
+// =====================================================
+// WEB PAGE
+// =====================================================
+
+String webpage() {
+
+  return R"rawliteral(
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1">
+
+<title>MYRAA MOTOR</title>
+
+<style>
+
+body {
+  margin: 0;
+  background: #101010;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+  user-select: none;
+}
+
+h1 {
+  margin-top: 20px;
+}
+
+.status {
+  margin: 15px auto;
+  padding: 12px;
+  width: 250px;
+  background: #202020;
+  border-radius: 12px;
+}
+
+.speed button {
+  width: 80px;
+  height: 45px;
+  margin: 5px;
+  border: 0;
+  border-radius: 10px;
+  font-weight: bold;
+}
+
+.control {
+  width: 310px;
+  margin: 30px auto;
+}
+
+.row {
+  display: flex;
+  justify-content: center;
+}
+
+.move {
+  width: 90px;
+  height: 90px;
+  margin: 5px;
+  border: 0;
+  border-radius: 18px;
+  background: #292929;
+  color: white;
+  font-size: 32px;
+  font-weight: bold;
+  touch-action: none;
+}
+
+.stop {
+  background: #900000;
+}
+
+</style>
+
+<script>
+
+function sendCommand(cmd) {
+  fetch("/" + cmd).catch(() => {});
+}
+
+function press(cmd, event) {
+  event.preventDefault();
+  sendCommand(cmd);
+}
+
+function release(event) {
+  event.preventDefault();
+  sendCommand("S");
+}
+
+</script>
+
+</head>
+
+
+<body>
+
+<h1>🤖 MYRAA</h1>
+
+<div class="status">
+ESP32-S3 + L298N
+</div>
+
+
+<!-- SPEED -->
+
+<div class="speed">
+
+<p>SPEED</p>
+
+<button onclick="sendCommand('low')">
+LOW
+</button>
+
+<button onclick="sendCommand('mid')">
+MID
+</button>
+
+<button onclick="sendCommand('high')">
+HIGH
+</button>
+
+</div>
+
+
+<!-- CONTROL -->
+
+<div class="control">
+
+
+<!-- FORWARD -->
+
+<div class="row">
+
+<button
+class="move"
+
+onpointerdown="press('F',event)"
+
+onpointerup="release(event)"
+
+onpointercancel="release(event)"
+
+>
+▲
+</button>
+
+</div>
+
+
+<!-- LEFT STOP RIGHT -->
+
+<div class="row">
+
+<button
+class="move"
+
+onpointerdown="press('L',event)"
+
+onpointerup="release(event)"
+
+onpointercancel="release(event)"
+
+>
+◀
+</button>
+
+
+<button
+class="move stop"
+
+onclick="sendCommand('S')"
+
+>
+■
+</button>
+
+
+<button
+class="move"
+
+onpointerdown="press('R',event)"
+
+onpointerup="release(event)"
+
+onpointercancel="release(event)"
+
+>
+▶
+</button>
+
+</div>
+
+
+<!-- BACKWARD -->
+
+<div class="row">
+
+<button
+class="move"
+
+onpointerdown="press('B',event)"
+
+onpointerup="release(event)"
+
+onpointercancel="release(event)"
+
+>
+▼
+</button>
+
+</div>
+
+
+</div>
+
+
+<p>
+
+F = Forward<br>
+B = Backward<br>
+L = Left<br>
+R = Right<br>
+S = Stop
+
+</p>
+
+
+</body>
+
+</html>
+
+)rawliteral";
+}
+
+
+// =====================================================
+// WEB HANDLERS
+// =====================================================
+
+void handleRoot() {
+
+  server.send(
+    200,
+    "text/html",
+    webpage()
+  );
+}
+
+
+void handleForward() {
+
+  forwardCar();
+
+  server.send(
+    200,
+    "text/plain",
+    "FORWARD"
+  );
+}
+
+
+void handleBackward() {
+
+  backwardCar();
+
+  server.send(
+    200,
+    "text/plain",
+    "BACKWARD"
+  );
+}
+
+
+void handleLeft() {
+
+  leftCar();
+
+  server.send(
+    200,
+    "text/plain",
+    "LEFT"
+  );
+}
+
+
+void handleRight() {
+
+  rightCar();
+
+  server.send(
+    200,
+    "text/plain",
+    "RIGHT"
+  );
+}
+
+
+void handleStop() {
+
+  stopCar();
+
+  server.send(
+    200,
+    "text/plain",
+    "STOP"
+  );
+}
+
+
+// =====================================================
+// SPEED
+// =====================================================
+
+void handleLow() {
+
+  carSpeed = speedLow;
+
+  server.send(
+    200,
+    "text/plain",
+    "LOW"
+  );
+}
+
+
+void handleMid() {
+
+  carSpeed = speedMid;
+
+  server.send(
+    200,
+    "text/plain",
+    "MID"
+  );
+}
+
+
+void handleHigh() {
+
+  carSpeed = speedHigh;
+
+  server.send(
+    200,
+    "text/plain",
+    "HIGH"
+  );
+}
+
+
+// =====================================================
+// SETUP
+// =====================================================
+
+void setup() {
+
+  Serial.begin(115200);
+
+
+  // Motor pins
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+
+  // Stop at startup
+  stopCar();
+
+
+  // WiFi AP
+  WiFi.mode(WIFI_AP);
+
+  WiFi.softAP(
+    ssid,
+    password
+  );
+
+
+  delay(500);
+
+
+  // Routes
+  server.on(
+    "/",
+    handleRoot
+  );
+
+  server.on(
+    "/F",
+    handleForward
+  );
+
+  server.on(
+    "/B",
+    handleBackward
+  );
+
+  server.on(
+    "/L",
+    handleLeft
+  );
+
+  server.on(
+    "/R",
+    handleRight
+  );
+
+  server.on(
+    "/S",
+    handleStop
+  );
+
+  server.on(
+    "/low",
+    handleLow
+  );
+
+  server.on(
+    "/mid",
+    handleMid
+  );
+
+  server.on(
+    "/high",
+    handleHigh
+  );
+
+
+  server.begin();
+
+
+  Serial.println();
+  Serial.println("==============================");
+  Serial.println("MYRAA ESP32-S3 MOTOR CONTROL");
+  Serial.println("==============================");
+
+  Serial.print("WiFi: ");
+  Serial.println(ssid);
+
+  Serial.print("IP: ");
+  Serial.println(
+    WiFi.softAPIP()
+  );
+
+  Serial.println(
+    "Open: http://192.168.4.1"
+  );
+}
+
+
+// =====================================================
+// LOOP
+// =====================================================
+
+void loop() {
+
+  server.handleClient();
+
+}
+
